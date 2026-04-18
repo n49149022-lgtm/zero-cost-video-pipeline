@@ -1,0 +1,43 @@
+# 🎬 Zero-Cost Video Pipeline | Docker Compose
+# Этот файл поможет запустить проект одной командой (в будущем)
+# Пока — только план. Не запускайте, пока не будет готова логика.
+
+version: "3.8"
+
+services:
+  video-pipeline:
+    # Образ: какой «контейнер» использовать
+    image: python:3.11-slim
+    
+    # Рабочая папка внутри контейнера
+    working_dir: /app
+    
+    # Монтируем локальную папку в контейнер
+    volumes:
+      - .:/app
+      - ./output:/app/output
+    
+    # Переменные окружения (настройки)
+    environment:
+      - PYTHONUNBUFFERED=1
+      - HF_DATASETS_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=0
+    
+    # Порты (если понадобится веб-интерфейс)
+    ports:
+      - "7860:7860"
+    
+    # Команда запуска (заглушка)
+    command: >
+      bash -c "
+        echo '🎬 Zero-Cost Video Pipeline';
+        echo '🟡 В разработке. Запуск будет доступен после реализации ядра.';
+        echo '✅ Структура готова.'
+      "
+    
+    # Ограничения ресурсов (чтобы не «съел» весь компьютер)
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
