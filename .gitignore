@@ -1,0 +1,42 @@
+# 🎬 Zero-Cost Video Pipeline | Git Ignore Rules
+# Файлы и папки, которые НЕ должны попадать в репозиторий
+
+# === ВРЕМЕННЫЕ И РАБОЧИЕ ДИРЕКТОРИИ ===
+output/
+cache/
+temp/
+models/
+
+# === PYTHON ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.env
+*.egg-info/
+dist/
+build/
+
+# === IDE И РЕДАКТОРЫ ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === ОС И МУСОР ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === ЛОГИ И ОТЧЁТЫ ===
+*.log
+*.tmp
+benchmarks/temp_*
+examples/draft_*
+
+# === ПАКЕТНЫЕ МЕНЕДЖЕРЫ ===
+poetry.lock
+Pipfile
