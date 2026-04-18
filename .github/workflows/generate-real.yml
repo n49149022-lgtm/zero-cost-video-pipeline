@@ -1,0 +1,55 @@
+name: 🎬 Real CPU Generation
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Промпт для генерации'
+        required: true
+        default: 'монстера у окна, естественный свет, макро'
+  push:
+    branches: [ main ]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - name: 📥 Checkout
+      uses: actions/checkout@v4
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: 📦 Install Dependencies
+      run: |
+        pip install --upgrade pip
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt --no-cache-dir
+
+    - name: 💾 Cache HuggingFace Models
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/huggingface
+        key: hf-models-${{ hashFiles('requirements.txt') }}
+
+    - name: 🚀 Run Real Generation
+      run: |
+        mkdir -p output cache
+        export OMP_NUM_THREADS=2
+        export HF_HUB_DISABLE_TELEMETRY=1
+        python -m pipeline.core "${{ github.event.inputs.prompt }}"
+      env:
+        OMP_NUM_THREADS: 2
+
+    - name: 📦 Upload Result
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: generated-output
+        path: output/
+        retention-days: 14
