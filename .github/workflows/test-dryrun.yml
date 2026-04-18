@@ -1,0 +1,45 @@
+name: 🧪 Test Dry-Run
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-architecture:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: 🧠 Run Dry-Run Test
+      run: |
+        python -m pipeline.core
+
+    - name: ✅ Check output structure
+      run: |
+        test -d output && echo "✅ output/ exists" || echo "⚠️ output/ missing"
+        test -d cache && echo "✅ cache/ exists" || echo "⚠️ cache/ missing"
+
+    - name: 📊 Upload logs (optional)
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: dry-run-logs
+        path: |
+          output/
+          cache/
+        retention-days: 7
