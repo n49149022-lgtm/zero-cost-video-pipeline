@@ -25,13 +25,14 @@ jobs:
         python-version: '3.11'
         cache: 'pip'
 
-    - name: 🔥 Install PyTorch CPU first
+    - name: 🔥 Install PyTorch CPU
       run: |
         pip install --upgrade pip
         pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir
 
-    - name: 📦 Install Other Dependencies
+    - name: 📦 Install Dependencies (Fixed)
       run: |
+        pip install huggingface_hub==0.20.3 --no-cache-dir
         pip install -r requirements.txt --no-cache-dir
 
     - name: 💾 Cache HuggingFace Models
@@ -39,6 +40,8 @@ jobs:
       with:
         path: ~/.cache/huggingface
         key: hf-models-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          hf-models-
 
     - name: 🚀 Run Real Generation (9:16)
       run: |
