@@ -1,9 +1,8 @@
-# 🎬 Zero-Cost Video Pipeline | Model Manager (REAL)
+# 🎬 Zero-Cost Video Pipeline | Model Manager (CPU PyTorch)
 import os, time, gc, torch
 from pathlib import Path
 from typing import Dict, Optional
 from diffusers import LCMScheduler, StableDiffusionPipeline
-from optimum.intel import OVStableDiffusionPipeline
 
 class ModelManager:
     def __init__(self, max_ram_mb: float = 4000.0, models_dir: str = "models"):
@@ -11,9 +10,9 @@ class ModelManager:
         self.max_ram_mb = max_ram_mb
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
-        print("📦 ModelManager initialized (REAL)")
+        print("📦 ModelManager initialized (CPU PyTorch)")
 
-    def _check_ram(self, required_mb: float = 2000.0) -> bool:
+    def _check_ram(self, required_mb: float = 2500.0) -> bool:
         import psutil
         available_mb = psutil.virtual_memory().available / 1024 / 1024
         if available_mb < required_mb:
@@ -22,25 +21,29 @@ class ModelManager:
         print(f"🧠 [RAM] OK: свободно ~{available_mb:.0f}MB")
         return True
 
-    def load_keyframe_model(self) -> Optional[OVStableDiffusionPipeline]:
+    def load_keyframe_model(self) -> Optional[StableDiffusionPipeline]:
         if "keyframe" in self.loaded_models:
             return self.loaded_models["keyframe"]
-        if not self._check_ram(2000):
+        if not self._check_ram(2500):
             return None
         try:
             model_id = "SimianLuo/LCM_Dreamshaper_v7"
             print(f"📥 Загрузка LCM модели: {model_id}")
-            pipe = OVStableDiffusionPipeline.from_pretrained(
+            
+            torch.set_grad_enabled(False)
+            pipe = StableDiffusionPipeline.from_pretrained(
                 model_id,
-                cache_dir=str(self.models_dir / "lcm"),
-                load_in_8bit=True,
+                cache_dir=str(self.models_dir),
                 torch_dtype=torch.float32,
+                safety_checker=None,
                 local_files_only=False
             )
             pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
+            pipe.to("cpu")
             pipe.set_progress_bar_config(disable=True)
+            
             self.loaded_models["keyframe"] = pipe
-            print("✅ Модель загружена в OpenVINO (INT8, CPU)")
+            print("✅ Модель загружена (CPU, torch.float32, LCM)")
             return pipe
         except Exception as e:
             print(f"❌ Ошибка загрузки модели: {e}")
@@ -50,8 +53,6 @@ class ModelManager:
         if model_type in self.loaded_models:
             del self.loaded_models[model_type]
             gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
             print(f"🗑️ [Model] Выгружена: {model_type}")
 
     def get_keyframe_model(self):
