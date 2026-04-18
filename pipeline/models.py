@@ -1,58 +1,58 @@
-# 🎬 Zero-Cost Video Pipeline | Model Manager (v0.2)
-# ОБНОВЛЁННЫЙ СКЕЛЕТ. Добавлен контроль RAM, трекинг времени и безопасная выгрузка.
-# Принцип: "Загружаем только нужное. Следим за памятью. Выгружаем, когда не нужно."
-
-import time
+# 🎬 Zero-Cost Video Pipeline | Model Manager (REAL)
+import os, time, gc, torch
+from pathlib import Path
 from typing import Dict, Optional
+from diffusers import LCMScheduler, StableDiffusionPipeline
+from optimum.intel import OVStableDiffusionPipeline
 
 class ModelManager:
-    def __init__(self, max_ram_mb: float = 4000.0):
-        self.loaded_models: Dict[str, dict] = {}
+    def __init__(self, max_ram_mb: float = 4000.0, models_dir: str = "models"):
+        self.loaded_models: Dict[str, object] = {}
         self.max_ram_mb = max_ram_mb
-        print("📦 Менеджер моделей инициализирован (v0.2)")
+        self.models_dir = Path(models_dir)
+        self.models_dir.mkdir(parents=True, exist_ok=True)
+        print("📦 ModelManager initialized (REAL)")
 
-    def _check_ram(self, required_mb: float = 500.0) -> bool:
-        """Проверяет, хватит ли памяти перед загрузкой"""
-        # TODO: Интегрировать psutil.virtual_memory() для реальной проверки
-        current_used_mb = len(self.loaded_models) * 1200  # Имитация: ~1.2GB на модель
-        available = self.max_ram_mb - current_used_mb
-        if available < required_mb:
-            print(f"⚠️ [RAM] Недостаточно памяти. Свободно: {available:.0f}MB, нужно: {required_mb}MB")
+    def _check_ram(self, required_mb: float = 2000.0) -> bool:
+        import psutil
+        available_mb = psutil.virtual_memory().available / 1024 / 1024
+        if available_mb < required_mb:
+            print(f"⚠️ [RAM] Недостаточно: свободно {available_mb:.0f}MB, нужно {required_mb}MB")
             return False
-        print(f"🧠 [RAM] OK. Свободно ~{available:.0f}MB")
+        print(f"🧠 [RAM] OK: свободно ~{available_mb:.0f}MB")
         return True
 
-    def load(self, model_type: str, path: str = None) -> Optional[dict]:
-        """1. Загружает модель (или возвращает уже загруженную)"""
-        if not self._check_ram():
+    def load_keyframe_model(self) -> Optional[OVStableDiffusionPipeline]:
+        if "keyframe" in self.loaded_models:
+            return self.loaded_models["keyframe"]
+        if not self._check_ram(2000):
             return None
-        
-        if model_type in self.loaded_models:
-            print(f"♻️ [Model] {model_type} уже в памяти")
-            return self.loaded_models[model_type]
-        
-        print(f"📥 [Model] Имитация загрузки: {model_type}")
-        self.loaded_models[model_type] = {
-            "id": model_type,
-            "path": path,
-            "loaded_at": time.time(),
-            "status": "ready"
-        }
-        return self.loaded_models[model_type]
+        try:
+            model_id = "SimianLuo/LCM_Dreamshaper_v7"
+            print(f"📥 Загрузка LCM модели: {model_id}")
+            pipe = OVStableDiffusionPipeline.from_pretrained(
+                model_id,
+                cache_dir=str(self.models_dir / "lcm"),
+                load_in_8bit=True,
+                torch_dtype=torch.float32,
+                local_files_only=False
+            )
+            pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
+            pipe.set_progress_bar_config(disable=True)
+            self.loaded_models["keyframe"] = pipe
+            print("✅ Модель загружена в OpenVINO (INT8, CPU)")
+            return pipe
+        except Exception as e:
+            print(f"❌ Ошибка загрузки модели: {e}")
+            return None
 
     def unload(self, model_type: str):
-        """2. Выгружает модель, освобождая ресурсы"""
         if model_type in self.loaded_models:
             del self.loaded_models[model_type]
-            # TODO: Вызов gc.collect() и очистка кэша ONNX/OpenVINO
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             print(f"🗑️ [Model] Выгружена: {model_type}")
-        else:
-            print(f"ℹ️ [Model] {model_type} не была загружена")
 
-    def get(self, model_type: str, path: str = None) -> Optional[dict]:
-        """Умный доступ: если нет → загружает, если есть → возвращает"""
-        return self.load(model_type, path) if model_type not in self.loaded_models else self.loaded_models[model_type]
-
-    def list_loaded(self) -> list:
-        """Показывает, какие модели сейчас в памяти"""
-        return list(self.loaded_models.keys())
+    def get_keyframe_model(self):
+        return self.load_keyframe_model() if "keyframe" not in self.loaded_models else self.loaded_models["keyframe"]
