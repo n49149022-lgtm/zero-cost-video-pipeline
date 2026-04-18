@@ -1,4 +1,4 @@
-name: 🎬 Real CPU Generation
+name: 🎬 Real CPU Generation (9:16)
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       prompt:
         description: 'Промпт для генерации'
         required: true
-        default: 'монстера у окна, естественный свет, макро'
+        default: 'золотой ретривер бежит по морскому берегу на закате, брызги, замедленная съёмка, вертикальный формат --ar 9:16'
   push:
     branches: [ main ]
 
@@ -25,10 +25,13 @@ jobs:
         python-version: '3.11'
         cache: 'pip'
 
-    - name: 📦 Install Dependencies
+    - name: 🔥 Install PyTorch CPU first
       run: |
         pip install --upgrade pip
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir
+
+    - name: 📦 Install Other Dependencies
+      run: |
         pip install -r requirements.txt --no-cache-dir
 
     - name: 💾 Cache HuggingFace Models
@@ -37,12 +40,12 @@ jobs:
         path: ~/.cache/huggingface
         key: hf-models-${{ hashFiles('requirements.txt') }}
 
-    - name: 🚀 Run Real Generation
+    - name: 🚀 Run Real Generation (9:16)
       run: |
         mkdir -p output cache
         export OMP_NUM_THREADS=2
         export HF_HUB_DISABLE_TELEMETRY=1
-        python -m pipeline.core "${{ github.event.inputs.prompt }}"
+        python -m pipeline.core "${{ github.event.inputs.prompt }}" --ratio 9:16
       env:
         OMP_NUM_THREADS: 2
 
@@ -50,6 +53,6 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: generated-output
+        name: generated-output-9x16
         path: output/
         retention-days: 14
