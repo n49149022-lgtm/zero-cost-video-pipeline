@@ -67,7 +67,7 @@ class VideoPipeline:
         
         # Сохранение в кэш
         print("[Шаг 6] Сохранение метаданных в кэш...")
-        self.cache.store(prompt, final_path, meta={"status": "dry_run_success"})
+        self.cache.store(prompt, final_path, metadata={"status": "dry_run_success"})
         
         # Очистка памяти
         print("[Шаг 7] Выгрузка моделей...")
