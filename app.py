@@ -1,25 +1,41 @@
-# 🎬 Zero-Cost Video Pipeline | Web Interface (Gradio)
-# ЭТО СКЕЛЕТ. Веб-интерфейс будет добавляться постепенно.
-# Принцип: "Простое поле ввода, кнопка запуска, статус и место для видео."
+# 🎬 Zero-Cost Video Pipeline | Web Interface (v0.3)
+# ОБНОВЛЕНИЕ: Подключение реального оркестратора (core.py).
+# Принцип: "Интерфейс принимает запрос, передаёт его в систему, показывает статус."
 
 import gradio as gr
-# TODO: from pipeline.core import VideoPipeline
-# TODO: from pipeline.config import config
+import sys
+from pathlib import Path
 
-def generate_video(prompt: str, dry_run: bool = True) -> tuple:
+# Добавляем корень проекта в путь импортов
+sys.path.insert(0, str(Path(__file__).parent))
+
+try:
+    from pipeline.core import VideoPipeline
+    PIPELINE_READY = True
+except Exception as e:
+    print(f"⚠️ Не удалось загрузить оркестратор: {e}")
+    PIPELINE_READY = False
+
+def generate_video(prompt: str, dry_run: bool = True):
     """Обработчик кнопки запуска"""
     if not prompt.strip():
-        return "⚠️ Введите текстовый запрос", None
+        return "⚠️ Пожалуйста, введите текстовый запрос.", None
     
-    if dry_run:
-        return "🟡 Режим проверки архитектуры. Генерация отключена.", None
+    if not PIPELINE_READY:
+        return "❌ Ошибка загрузки модулей. Проверьте структуру проекта.", None
     
-    # TODO: Подключить реальный пайплайн
-    # pipeline = VideoPipeline()
-    # result = pipeline.run(prompt)
-    # return "✅ Видео готово!", result
-    
-    return "🔴 Реальная генерация пока недоступна. Дождитесь загрузки моделей.", None
+    try:
+        pipeline = VideoPipeline()
+        
+        if dry_run:
+            status_msg = "🟡 Режим проверки архитектуры (Dry-Run). Генерация эмулируется."
+            log_result = pipeline.run_dry(prompt)
+            return f"{status_msg}\n📝 Лог выполнения:\n{log_result}", None
+        else:
+            return "🔴 Реальная генерация пока недоступна. Используйте Dry-Run.", None
+            
+    except Exception as e:
+        return f"❌ Ошибка выполнения: {str(e)}", None
 
 # Создание интерфейса
 with gr.Blocks(title="Zero-Cost Video Pipeline", theme=gr.themes.Soft()) as demo:
@@ -34,13 +50,12 @@ with gr.Blocks(title="Zero-Cost Video Pipeline", theme=gr.themes.Soft()) as demo
                 lines=2
             )
             run_btn = gr.Button("🚀 Запустить генерацию", variant="primary")
-            dry_run_checkbox = gr.Checkbox(label="🔍 Только проверка архитектуры", value=True)
+            dry_run_checkbox = gr.Checkbox(label="🔍 Только проверка архитектуры (Dry-Run)", value=True)
             
         with gr.Column(scale=2):
-            status_output = gr.Textbox(label="📊 Статус", lines=3)
+            status_output = gr.Textbox(label="📊 Статус и лог", lines=8)
             video_output = gr.Video(label="🎥 Результат")
     
-    # Связываем кнопку с функцией
     run_btn.click(
         fn=generate_video, 
         inputs=[prompt_input, dry_run_checkbox], 
